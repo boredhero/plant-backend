@@ -33,8 +33,18 @@ def handle_timelapse_latest():
     return {"timelapse": latest, "timestamp": get_unix_timestamp()}
 
 
+_last_reset = {}
+RESET_COOLDOWN_SEC = 60
+
+
 def handle_reset_stream(cam_id):
+    now = get_unix_timestamp()
+    last = _last_reset.get(cam_id, 0)
+    if now - last < RESET_COOLDOWN_SEC:
+        remaining = RESET_COOLDOWN_SEC - (now - last)
+        return {"status": "cooldown", "retry_after": remaining, "timestamp": now}, 429
+    _last_reset[cam_id] = now
     trigger_file = os.path.join(DATA_DIR, f"reset_cam{cam_id}.trigger")
     with open(trigger_file, "w") as f:
-        f.write(str(get_unix_timestamp()))
-    return {"status": "ok", "cam": cam_id, "timestamp": get_unix_timestamp()}
+        f.write(str(now))
+    return {"status": "ok", "cam": cam_id, "timestamp": now}

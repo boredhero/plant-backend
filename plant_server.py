@@ -28,7 +28,10 @@ class PlantAPI(FlaskView):
         return jsonify(result)
     @route("/cam/reset/<int:cam_id>", methods=["POST"])
     def reset_stream(self, cam_id):
-        return jsonify(handle_reset_stream(cam_id))
+        result = handle_reset_stream(cam_id)
+        if isinstance(result, tuple):
+            return jsonify(result[0]), result[1]
+        return jsonify(result)
 
 
 def create_app():
