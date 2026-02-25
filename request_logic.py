@@ -21,7 +21,8 @@ def handle_cam_status():
 
 
 def handle_timelapse_list():
-    return {"timelapses": list_timelapses(), "timestamp": get_unix_timestamp()}
+    tl = list_timelapses()
+    return {"daily": tl["daily"], "weekly": tl["weekly"], "timestamp": get_unix_timestamp()}
 
 
 def handle_timelapse_latest():

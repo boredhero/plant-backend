@@ -42,19 +42,66 @@ def stitch_timelapse(date_str=None):
             os.remove(list_file)
 
 
+def stitch_weekly_timelapse():
+    today = datetime.now()
+    week_end = today.strftime("%Y-%m-%d")
+    week_start = (today - timedelta(days=6)).strftime("%Y-%m-%d")
+    all_frames = []
+    for i in range(7):
+        day = (today - timedelta(days=6 - i)).strftime("%Y-%m-%d")
+        day_dir = os.path.join(SNAPSHOT_DIR, day)
+        if os.path.isdir(day_dir):
+            all_frames.extend(sorted(glob.glob(os.path.join(day_dir, "*.jpg"))))
+    if len(all_frames) < 10:
+        logger.warning(f"Only {len(all_frames)} frames for week {week_start} to {week_end}, skipping")
+        return None
+    weekly_dir = os.path.join(TIMELAPSE_DIR, "weekly")
+    os.makedirs(weekly_dir, exist_ok=True)
+    output_path = os.path.join(weekly_dir, f"week_{week_start}_to_{week_end}.mp4")
+    list_file = os.path.join(TIMELAPSE_DIR, "weekly_frames.txt")
+    with open(list_file, "w") as f:
+        for frame in all_frames:
+            f.write(f"file '{frame}'\nduration 0.04\n")
+        f.write(f"file '{all_frames[-1]}'\n")
+    cmd = ["ffmpeg", "-y", "-f", "concat", "-safe", "0", "-i", list_file, "-c:v", "libx264", "-pix_fmt", "yuv420p", "-r", "24", "-crf", "23", "-preset", "fast", output_path]
+    try:
+        result = subprocess.run(cmd, capture_output=True, text=True, timeout=600)
+        if result.returncode != 0:
+            logger.error(f"ffmpeg weekly timelapse failed: {result.stderr[-500:]}")
+            return None
+        logger.info(f"Weekly timelapse created: {output_path} from {len(all_frames)} frames")
+        return output_path
+    except subprocess.TimeoutExpired:
+        logger.error("ffmpeg weekly timelapse timed out")
+        return None
+    finally:
+        if os.path.exists(list_file):
+            os.remove(list_file)
+
+
 def list_timelapses():
     if not os.path.isdir(TIMELAPSE_DIR):
-        return []
-    files = sorted(glob.glob(os.path.join(TIMELAPSE_DIR, "*.mp4")), reverse=True)
-    result = []
-    for f in files:
+        return {"daily": [], "weekly": []}
+    daily_files = sorted(glob.glob(os.path.join(TIMELAPSE_DIR, "*.mp4")), reverse=True)
+    daily = []
+    for f in daily_files:
         basename = os.path.basename(f)
         date_str = basename.replace(".mp4", "")
         size_mb = round(os.path.getsize(f) / (1024 * 1024), 2)
-        result.append({"date": date_str, "filename": basename, "size_mb": size_mb, "url": f"/cam/timelapse/{basename}"})
-    return result
+        daily.append({"date": date_str, "filename": basename, "size_mb": size_mb, "url": f"/cam/timelapse/{basename}"})
+    weekly_dir = os.path.join(TIMELAPSE_DIR, "weekly")
+    weekly_files = sorted(glob.glob(os.path.join(weekly_dir, "*.mp4")), reverse=True) if os.path.isdir(weekly_dir) else []
+    weekly = []
+    for f in weekly_files:
+        basename = os.path.basename(f)
+        label = basename.replace("week_", "").replace(".mp4", "").replace("_to_", " to ")
+        size_mb = round(os.path.getsize(f) / (1024 * 1024), 2)
+        weekly.append({"label": label, "filename": basename, "size_mb": size_mb, "url": f"/cam/timelapse/weekly/{basename}"})
+    return {"daily": daily, "weekly": weekly}
 
 
 def get_latest_timelapse():
     tl = list_timelapses()
-    return tl[0] if tl else None
+    if tl["daily"]:
+        return tl["daily"][0]
+    return None
