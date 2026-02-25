@@ -11,16 +11,20 @@ After=network.target
 EnvironmentFile=/home/noah/plantcam.env
 ExecStartPre=/bin/mkdir -p ${HLS_DIR}
 ExecStart=/usr/bin/ffmpeg \
+    -use_wallclock_as_timestamps 1 \
+    -fflags +genpts+discardcorrupt \
+    -reconnect 1 -reconnect_streamed 1 -reconnect_delay_max 2 \
     -i http://${ROCKPRO64_IP}:${CAM_PORT}/?action=stream \
     -r 15 \
     -vaapi_device /dev/dri/renderD128 \
     -vf "drawtext=text='%%{localtime}':fontsize=20:fontcolor=white:borderw=2:bordercolor=black:x=10:y=h-35,format=nv12,hwupload" \
     -c:v h264_vaapi \
     -b:v 1500k \
+    -g 30 \
     -f hls \
-    -hls_time 4 \
-    -hls_list_size 15 \
-    -hls_flags delete_segments \
+    -hls_time 2 \
+    -hls_list_size 30 \
+    -hls_flags delete_segments+temp_file \
     -hls_segment_filename ${HLS_DIR}/segment_%%03d.ts \
     ${HLS_DIR}/stream.m3u8
 Restart=always
