@@ -30,16 +30,16 @@ jobs:
             ghcr.io/${{ github.repository }}:latest
             ghcr.io/${{ github.repository }}:${{ github.sha }}
 
-      - name: Copy docker-compose to server
+      - name: Copy files to server
         uses: appleboy/scp-action@v0.1.7
         with:
           host: ${{ secrets.DEPLOY_HOST }}
           username: ${{ secrets.DEPLOY_USER }}
           key: ${{ secrets.DEPLOY_SSH_KEY }}
-          source: docker-compose.yml
+          source: "docker-compose.yml,systemd/plantcam-hls.service,rockpro64/find_camera.sh,rockpro64/systemd/ustreamer.service"
           target: ~/plant-backend/
 
-      - name: Deploy to server
+      - name: Deploy
         uses: appleboy/ssh-action@v1
         with:
           host: ${{ secrets.DEPLOY_HOST }}
@@ -49,3 +49,9 @@ jobs:
             echo "${{ secrets.GHCR_TOKEN }}" | docker login ghcr.io -u boredhero --password-stdin
             docker pull ghcr.io/${{ github.repository }}:latest
             cd ~/plant-backend && docker compose up -d --force-recreate
+            sudo cp systemd/plantcam-hls.service /etc/systemd/system/plantcam-hls.service
+            sudo systemctl daemon-reload
+            sudo systemctl restart plantcam-hls
+            scp rockpro64/find_camera.sh ${{ secrets.ROCKPRO64_IP }}:/tmp/find_camera.sh
+            scp rockpro64/systemd/ustreamer.service ${{ secrets.ROCKPRO64_IP }}:/tmp/ustreamer.service
+            ssh ${{ secrets.ROCKPRO64_IP }} 'sudo mv /tmp/find_camera.sh /usr/local/bin/find_camera.sh && sudo chmod +x /usr/local/bin/find_camera.sh && sudo mv /tmp/ustreamer.service /etc/systemd/system/ustreamer.service && sudo systemctl daemon-reload && sudo systemctl restart ustreamer'
