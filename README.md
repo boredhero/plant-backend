@@ -39,6 +39,38 @@ USB device numbering can change across reboots. `find_camera.sh` locates the cor
 
 `calibrate_exposure.py` attempts to sync the camera's manual exposure time to the LED PWM period by sweeping exposure values and measuring horizontal row-brightness variance in captured frames. Results are cached to `/etc/ustreamer_exposure` so subsequent boots are instant. Falls back to auto-exposure if no significant improvement is found.
 
+### Per-Camera Filter Pipeline Reference
+
+Each camera has an independent ffmpeg filter chain configured via its env file (`plantcam-camN.env`). The filters are applied in order before VAAPI hardware encoding.
+
+**Available filters and what they do:**
+
+| Filter | Purpose | Example |
+|--------|---------|---------|
+| `lagfun=decay=N` | Exponential running max — holds brightest pixel value with slow decay. Primary LED band eliminator. | `lagfun=decay=0.9995` |
+| `tmedian=radius=N:percentile=1` | Hard pixel-wise max over 2N+1 frames. Cleans up lagfun decay artifacts. | `tmedian=radius=3:percentile=1` |
+| `eq=brightness=N:saturation=N:contrast=N` | Basic brightness/contrast/saturation adjustment. Compensates for temporal max overbright. | `eq=brightness=-0.12:saturation=1.15:contrast=1.08` |
+| `colorbalance=rm=N:bm=N:rh=N:bh=N` | Per-tonal-range RGB correction. `rm`/`bm` adjust midtones (browns/greens), `rh`/`bh` adjust highlights (whites). | `colorbalance=rm=0.0:bm=-0.03:rh=-0.05:bh=-0.01` |
+| `drawtext=text='%{localtime}'...` | Timestamp overlay. | see env example |
+| `format=nv12,hwupload` | Convert to NV12 and upload to GPU for VAAPI encoding. Must be last. | `format=nv12,hwupload` |
+
+**Current production filter chains:**
+
+Cam 1 (overhead, cheap USB webcam with warm color cast):
+```
+lagfun=decay=0.9995,tmedian=radius=3:percentile=1,
+eq=brightness=-0.12:saturation=1.15:contrast=1.08,
+colorbalance=rm=0.0:bm=-0.03:rh=-0.05:bh=-0.01,
+drawtext=...,format=nv12,hwupload
+```
+
+Cam 2 (side view, accurate color, no correction needed):
+```
+lagfun=decay=0.9995,tmedian=radius=3:percentile=1,
+eq=brightness=-0.15,
+drawtext=...,format=nv12,hwupload
+```
+
 ### MJPEG Timestamp Handling
 
 MJPEG streams from ustreamer have no proper PTS timestamps. Without `-use_wallclock_as_timestamps 1` and `-fflags +genpts`, ffmpeg invents timestamps that drift, producing HLS segments with inconsistent durations. This was the primary cause of periodic stream freezing before being identified and fixed.
