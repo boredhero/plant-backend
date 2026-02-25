@@ -17,7 +17,7 @@ ExecStart=/usr/bin/ffmpeg \
     -i http://${ROCKPRO64_IP}:${CAM_PORT}/?action=stream \
     -r 15 \
     -vaapi_device /dev/dri/renderD128 \
-    -vf "lagfun=decay=0.9995,tmedian=radius=4:percentile=1,eq=brightness=-0.06:saturation=1.1:contrast=1.05,colorbalance=ms=-0.08:mm=0:mh=0.06,drawtext=text='%%{localtime}':fontsize=20:fontcolor=white:borderw=2:bordercolor=black:x=10:y=h-35,format=nv12,hwupload" \
+    -vf "lagfun=decay=0.9995,tmedian=radius=4:percentile=1,eq=brightness=-0.08:saturation=0.85:contrast=1.1,colorbalance=rm=-0.15:gm=-0.05:bm=0.15:rh=-0.1:bh=0.1,drawtext=text='%%{localtime}':fontsize=20:fontcolor=white:borderw=2:bordercolor=black:x=10:y=h-35,format=nv12,hwupload" \
     -c:v h264_vaapi \
     -b:v 1500k \
     -g 30 \
