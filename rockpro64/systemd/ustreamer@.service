@@ -1,0 +1,20 @@
+# Template service for multi-camera ustreamer instances
+# Enable with: sudo systemctl enable --now ustreamer@1 ustreamer@2
+# Instance %i is the camera number (1, 2, etc.)
+# Port = 8079 + instance (cam 1 = 8080, cam 2 = 8081)
+
+[Unit]
+Description=ustreamer MJPEG camera server (cam %i)
+After=network.target
+
+[Service]
+ExecStartPre=/bin/bash -c '/usr/local/bin/find_cameras.sh %i > /dev/null'
+ExecStartPre=/bin/bash -c 'v4l2-ctl -d $(cat /run/ustreamer_device_%i) --set-ctrl=auto_exposure=3 --set-ctrl=power_line_frequency=2'
+ExecStart=/bin/bash -c 'exec /usr/bin/ustreamer --device $(cat /run/ustreamer_device_%i) --host 0.0.0.0 --port $((8079 + %i)) --resolution 1280x720 --desired-fps 30 --format MJPEG'
+ExecStartPost=-/usr/bin/python3 /usr/local/bin/calibrate_exposure.py --device-file /run/ustreamer_device_%i --port $((8079 + %i))
+TimeoutStartSec=180
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target
