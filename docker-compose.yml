@@ -1,0 +1,13 @@
+services:
+  plant-backend:
+    image: ghcr.io/boredhero/plant-backend:latest
+    build: .
+    network_mode: host
+    restart: always
+    env_file: .env
+    volumes:
+      - /home/noah/plantcam-data:/app/data
+      - /var/www/planting.martinospizza.dev/cam/hls:/app/hls:ro
+    environment:
+      - DATA_DIR=/app/data
+      - HLS_DIR=/app/hls
