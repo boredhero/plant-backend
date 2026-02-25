@@ -9,7 +9,7 @@ After=network.target
 
 [Service]
 ExecStartPre=/bin/bash -c '/usr/local/bin/find_camera.sh > /run/ustreamer_device'
-ExecStartPre=/bin/bash -c 'v4l2-ctl -d $(cat /run/ustreamer_device) --set-ctrl=auto_exposure=1 --set-ctrl=exposure_time_absolute=167 --set-ctrl=power_line_frequency=2 --set-ctrl=white_balance_automatic=0 --set-ctrl=exposure_dynamic_framerate=0'
+ExecStartPre=/bin/bash -c 'v4l2-ctl -d $(cat /run/ustreamer_device) --set-ctrl=auto_exposure=3 --set-ctrl=power_line_frequency=2'
 ExecStart=/bin/bash -c 'exec /usr/bin/ustreamer --device $(cat /run/ustreamer_device) --host 0.0.0.0 --port 8080 --resolution 1280x720 --desired-fps 30 --format MJPEG'
 Restart=always
 RestartSec=5
