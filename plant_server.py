@@ -1,7 +1,7 @@
 from flask import Flask, jsonify
 from flask_classful import FlaskView, route
 from flask_cors import CORS
-from request_logic import handle_info, handle_cam_status, handle_timelapse_list, handle_timelapse_latest
+from request_logic import handle_info, handle_cam_status, handle_timelapse_list, handle_timelapse_latest, handle_reset_stream
 from scheduler import start_scheduler
 from logging_setup import setup_logger
 from settings import FLASK_HOST, FLASK_PORT, FLASK_DEBUG
@@ -23,6 +23,12 @@ class PlantAPI(FlaskView):
     @route("/timelapse/latest", methods=["GET"])
     def timelapse_latest(self):
         result = handle_timelapse_latest()
+        if isinstance(result, tuple):
+            return jsonify(result[0]), result[1]
+        return jsonify(result)
+    @route("/cam/reset/<int:cam_id>", methods=["POST"])
+    def reset_stream(self, cam_id):
+        result = handle_reset_stream(cam_id)
         if isinstance(result, tuple):
             return jsonify(result[0]), result[1]
         return jsonify(result)

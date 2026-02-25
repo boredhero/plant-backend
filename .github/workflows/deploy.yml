@@ -41,7 +41,7 @@ jobs:
           host: ${{ secrets.DEPLOY_HOST }}
           username: ${{ secrets.DEPLOY_USER }}
           key: ${{ secrets.DEPLOY_SSH_KEY }}
-          source: "docker-compose.yml,systemd/plantcam-hls@.service,rockpro64/find_cameras.sh,rockpro64/calibrate_exposure.py,rockpro64/systemd/ustreamer@.service"
+          source: "docker-compose.yml,systemd/plantcam-hls@.service,systemd/plantcam-reset@.path,systemd/plantcam-reset@.service,rockpro64/find_cameras.sh,rockpro64/calibrate_exposure.py,rockpro64/systemd/ustreamer@.service"
           target: ~/plant-backend/
 
       - name: Deploy
@@ -55,10 +55,12 @@ jobs:
             docker pull ghcr.io/${{ github.repository }}:latest
             cd ~/plant-backend && docker compose up -d --force-recreate
             sudo cp systemd/plantcam-hls@.service /etc/systemd/system/plantcam-hls@.service
+            sudo cp systemd/plantcam-reset@.path /etc/systemd/system/plantcam-reset@.path
+            sudo cp systemd/plantcam-reset@.service /etc/systemd/system/plantcam-reset@.service
             sudo systemctl stop plantcam-hls 2>/dev/null; sudo systemctl disable plantcam-hls 2>/dev/null; true
             sudo systemctl daemon-reload
-            test -f /home/noah/plantcam-cam1.env && sudo systemctl enable --now plantcam-hls@1 || true
-            test -f /home/noah/plantcam-cam2.env && sudo systemctl enable --now plantcam-hls@2 || true
+            test -f /home/noah/plantcam-cam1.env && sudo systemctl enable --now plantcam-hls@1 plantcam-reset@1 || true
+            test -f /home/noah/plantcam-cam2.env && sudo systemctl enable --now plantcam-hls@2 plantcam-reset@2 || true
             for i in 1 2 3; do tar cf - rockpro64/find_cameras.sh rockpro64/calibrate_exposure.py rockpro64/systemd/ustreamer@.service | ssh -o ConnectTimeout=10 -o ConnectionAttempts=3 ${{ secrets.ROCKPRO64_IP }} 'tar xf - -C /tmp' && break; echo "RockPro64 transfer attempt $i failed, retrying in 10s..."; sleep 10; done
             for f in /home/noah/plantcam-cam*.env; do scp -o ConnectTimeout=10 "$f" ${{ secrets.ROCKPRO64_IP }}:/home/noah/ 2>/dev/null; done
             ssh -o ConnectTimeout=10 -o ConnectionAttempts=3 ${{ secrets.ROCKPRO64_IP }} 'sudo apt-get install -y python3-pil 2>/dev/null || pip3 install Pillow 2>/dev/null; sudo cp /tmp/rockpro64/find_cameras.sh /usr/local/bin/find_cameras.sh && sudo chmod +x /usr/local/bin/find_cameras.sh && sudo cp /tmp/rockpro64/calibrate_exposure.py /usr/local/bin/calibrate_exposure.py && sudo chmod +x /usr/local/bin/calibrate_exposure.py && sudo cp /tmp/rockpro64/systemd/ustreamer@.service /etc/systemd/system/ustreamer@.service && rm -rf /tmp/rockpro64 && sudo systemctl daemon-reload && sudo systemctl stop ustreamer 2>/dev/null; sudo systemctl disable ustreamer 2>/dev/null; test -f /home/noah/plantcam-cam1.env && sudo systemctl enable --now ustreamer@1 || true; test -f /home/noah/plantcam-cam2.env && sudo systemctl enable --now ustreamer@2 || true'

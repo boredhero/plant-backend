@@ -1,0 +1,13 @@
+# Watches for reset trigger files written by the Flask API
+# When /home/noah/plantcam-data/reset_cam%i.trigger is modified,
+# the corresponding .service unit runs to restart the HLS transcoder.
+# Enable with: sudo systemctl enable --now plantcam-reset@1 plantcam-reset@2
+
+[Unit]
+Description=Watch for cam %i stream reset trigger
+
+[Path]
+PathModified=/home/noah/plantcam-data/reset_cam%i.trigger
+
+[Install]
+WantedBy=multi-user.target
