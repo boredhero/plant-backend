@@ -1,0 +1,9 @@
+# Triggered by plantcam-reset@.path when a reset file is written.
+# Restarts the HLS transcoder to clear lagfun memory after camera movement.
+
+[Unit]
+Description=Reset cam %i stream (clear lagfun buffer)
+
+[Service]
+Type=oneshot
+ExecStart=/bin/systemctl restart plantcam-hls@%i
