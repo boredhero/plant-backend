@@ -6,12 +6,13 @@ Flask API backend for a live plant camera streaming and timelapse system. Handle
 
 ## Architecture
 
-A RockPro64 SBC runs a USB webcam via [ustreamer](https://github.com/pikvm/ustreamer) (MJPEG over HTTP). The main server pulls the MJPEG stream and transcodes it to HLS using ffmpeg with Intel VAAPI hardware encoding. This backend runs alongside the transcoder in Docker, capturing snapshots for timelapse generation and exposing a REST API for stream health and timelapse data.
+A RockPro64 SBC runs multiple USB webcams via [ustreamer](https://github.com/pikvm/ustreamer) (MJPEG over HTTP). The main server pulls the MJPEG streams and transcodes them to HLS using ffmpeg with AMD VAAPI hardware encoding (Radeon R9 Fury). This backend runs alongside the transcoders in Docker, capturing snapshots from all cameras for timelapse generation and exposing a REST API for stream health and timelapse data.
 
 ```
-USB Cam -> ustreamer (MJPEG) -> ffmpeg VAAPI (HLS) -> nginx -> hls.js
-                |
-                +-> Flask backend -> snapshots -> daily/weekly timelapse MP4s
+USB Cam 1 -> ustreamer@1 (:8080) --+
+                                    +--> ffmpeg VAAPI (HLS) --> nginx --> hls.js
+USB Cam 2 -> ustreamer@2 (:8081) --+         |
+                                    +-------> Flask backend -> per-cam snapshots -> daily/weekly timelapse MP4s
 ```
 
 ## Interesting Technical Decisions
@@ -33,11 +34,19 @@ The temporal max biases the image toward the grow lights' warm spectrum (always 
 
 The critical finding: highlights (whites) needed cooling (less red, more blue) while midtones (browns) needed the opposite correction (neutral red, less blue). Applying a uniform color shift in either direction made one look right and the other wrong. The `colorbalance` filter's per-tonal-range RGB controls (`rm`/`bm` for midtones, `rh`/`bh` for highlights) solved this by correcting each brightness range independently.
 
-### Camera Auto-Detection and Exposure Calibration
+### Multi-Camera with USB Hardware Identity
 
-USB device numbering can change across reboots. `find_camera.sh` locates the correct `/dev/videoN` by filtering for UVC-class capture devices rather than hardcoding a device path.
+Each camera is identified by its immutable USB vendor:model ID (e.g., `0bda:5844`), not by `/dev/videoN` numbering which changes across reboots and port swaps. Per-camera config lives in `plantcam-camN.env` files containing the USB ID, ustreamer port, HLS output path, and the full ffmpeg filter chain. `find_cameras.sh` matches a given vendor:model ID to the correct `/dev/videoN` by querying udev properties.
 
-`calibrate_exposure.py` attempts to sync the camera's manual exposure time to the LED PWM period by sweeping exposure values and measuring horizontal row-brightness variance in captured frames. Results are cached to `/etc/ustreamer_exposure` so subsequent boots are instant. Falls back to auto-exposure if no significant improvement is found.
+Systemd template services (`ustreamer@.service`, `plantcam-hls@.service`) instantiate per camera — `ustreamer@1` reads `CAM_USB_ID` from `plantcam-cam1.env` and starts on the configured port. Adding a camera is: plug it in, create a new env file, enable the services.
+
+### Stream Reset via File Trigger IPC
+
+After repositioning a camera, the `lagfun` temporal buffer retains a ghost of the old position for ~1-2 minutes. The frontend's "Reset Stream" button hits `POST /cam/reset/<id>`, which writes a trigger file. A systemd `.path` unit on the host watches for it and restarts the corresponding HLS transcoder, clearing the buffer instantly. Rate-limited to 10 resets per 5 minutes per IP with exponential backoff.
+
+### Exposure Calibration
+
+`calibrate_exposure.py` attempts to sync each camera's manual exposure time to the LED PWM period by sweeping exposure values and measuring horizontal row-brightness variance in captured frames. Results are cached to `/etc/ustreamer_exposure` so subsequent boots are instant. Falls back to auto-exposure if no significant improvement is found.
 
 ### Per-Camera Filter Pipeline Reference
 
@@ -51,7 +60,7 @@ Each camera has an independent ffmpeg filter chain configured via its env file (
 | `tmedian=radius=N:percentile=1` | Hard pixel-wise max over 2N+1 frames. Cleans up lagfun decay artifacts. | `tmedian=radius=3:percentile=1` |
 | `eq=brightness=N:saturation=N:contrast=N` | Basic brightness/contrast/saturation adjustment. Compensates for temporal max overbright. | `eq=brightness=-0.12:saturation=1.15:contrast=1.08` |
 | `colorbalance=rm=N:bm=N:rh=N:bh=N` | Per-tonal-range RGB correction. `rm`/`bm` adjust midtones (browns/greens), `rh`/`bh` adjust highlights (whites). | `colorbalance=rm=0.0:bm=-0.03:rh=-0.05:bh=-0.01` |
-| `drawtext=text='%{localtime}'...` | Timestamp overlay. | see env example |
+| `drawtext=expansion=strftime:textfile=...` | Timestamp overlay (12-hour AM/PM via strftime format file). | see env example |
 | `format=nv12,hwupload` | Convert to NV12 and upload to GPU for VAAPI encoding. Must be last. | `format=nv12,hwupload` |
 
 **Current production filter chains:**
@@ -64,10 +73,11 @@ colorbalance=rm=0.0:bm=-0.03:rh=-0.05:bh=-0.01,
 drawtext=...,format=nv12,hwupload
 ```
 
-Cam 2 (side view, accurate color, no correction needed):
+Cam 2 (side view, accurate color, minimal correction):
 ```
 lagfun=decay=0.9995,tmedian=radius=3:percentile=1,
-eq=brightness=-0.15,
+eq=brightness=-0.15:saturation=0.95,
+colorbalance=rm=0.03:bm=-0.08:bh=-0.03,
 drawtext=...,format=nv12,hwupload
 ```
 
@@ -81,12 +91,13 @@ MJPEG streams from ustreamer have no proper PTS timestamps. Without `-use_wallcl
 |----------|--------|-------------|
 | `/info` | GET | Service version and status |
 | `/cam/status` | GET | Camera and HLS stream health |
-| `/timelapse` | GET | List daily and weekly timelapse videos |
+| `/cam/reset/<id>` | POST | Reset stream for camera N (clears lagfun buffer). Rate-limited. |
+| `/timelapse` | GET | List daily and weekly timelapse videos (all cameras) |
 | `/timelapse/latest` | GET | Most recent timelapse |
 
 ## Timelapse System
 
-- **Snapshots**: Captured every 5 minutes from the camera
+- **Snapshots**: Captured every 5 minutes from each camera into per-camera directories
 - **Daily stitch**: Runs at 23:00 UTC, produces one MP4 per day (~14 seconds at 20fps)
 - **Weekly stitch**: Runs Sundays at 23:30 UTC, combines 7 days into one MP4 (~84 seconds at 24fps)
 - **Cleanup**: Runs Sundays at 23:45 UTC. Snapshots older than 9 days and daily videos older than 30 days are deleted. Weekly videos are kept indefinitely.
