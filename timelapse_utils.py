@@ -1,4 +1,5 @@
 import os
+import shutil
 import subprocess
 import glob
 from datetime import datetime, timedelta
@@ -105,3 +106,28 @@ def get_latest_timelapse():
     if tl["daily"]:
         return tl["daily"][0]
     return None
+
+
+def cleanup_old_data(snapshot_keep_days=9, daily_keep_days=30):
+    """Delete snapshots older than snapshot_keep_days and daily videos older than daily_keep_days. Weekly videos are kept forever."""
+    cutoff_snap = datetime.now() - timedelta(days=snapshot_keep_days)
+    cutoff_daily = datetime.now() - timedelta(days=daily_keep_days)
+    if os.path.isdir(SNAPSHOT_DIR):
+        for dirname in os.listdir(SNAPSHOT_DIR):
+            try:
+                dir_date = datetime.strptime(dirname, "%Y-%m-%d")
+                if dir_date < cutoff_snap:
+                    shutil.rmtree(os.path.join(SNAPSHOT_DIR, dirname))
+                    logger.info(f"Cleaned up snapshot directory: {dirname}")
+            except ValueError:
+                continue
+    if os.path.isdir(TIMELAPSE_DIR):
+        for fname in glob.glob(os.path.join(TIMELAPSE_DIR, "*.mp4")):
+            basename = os.path.basename(fname).replace(".mp4", "")
+            try:
+                file_date = datetime.strptime(basename, "%Y-%m-%d")
+                if file_date < cutoff_daily:
+                    os.remove(fname)
+                    logger.info(f"Cleaned up old daily timelapse: {basename}.mp4")
+            except ValueError:
+                continue
