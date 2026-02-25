@@ -17,9 +17,10 @@ ExecStart=/usr/bin/ffmpeg \
     -vf "drawtext=text='%%{localtime}':fontsize=20:fontcolor=white:borderw=2:bordercolor=black:x=10:y=h-35,format=nv12,hwupload" \
     -c:v h264_vaapi \
     -b:v 1500k \
+    -g 30 \
     -f hls \
-    -hls_time 4 \
-    -hls_list_size 15 \
+    -hls_time 2 \
+    -hls_list_size 30 \
     -hls_flags delete_segments \
     -hls_segment_filename ${HLS_DIR}/segment_%%03d.ts \
     ${HLS_DIR}/stream.m3u8
