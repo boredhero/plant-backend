@@ -2,26 +2,35 @@ import os
 import requests
 from datetime import datetime
 from logging_setup import setup_logger
-from settings import CAMERA_SNAPSHOT_URL, SNAPSHOT_DIR, HLS_PLAYLIST
+from settings import CAMERA_SNAPSHOT_URL, SNAPSHOT_DIR, HLS_PLAYLIST, CAMERAS
 
 logger = setup_logger("cam_utils")
 
 
 def capture_snapshot():
-    os.makedirs(SNAPSHOT_DIR, exist_ok=True)
-    today_dir = os.path.join(SNAPSHOT_DIR, datetime.now().strftime("%Y-%m-%d"))
+    if not CAMERAS:
+        return _capture_single(CAMERA_SNAPSHOT_URL, SNAPSHOT_DIR)
+    results = []
+    for cam in CAMERAS:
+        results.append(_capture_single(cam["snapshot_url"], cam["snapshot_dir"], cam["label"]))
+    return results
+
+
+def _capture_single(url, base_dir, label=""):
+    os.makedirs(base_dir, exist_ok=True)
+    today_dir = os.path.join(base_dir, datetime.now().strftime("%Y-%m-%d"))
     os.makedirs(today_dir, exist_ok=True)
     filename = datetime.now().strftime("%H%M%S") + ".jpg"
     filepath = os.path.join(today_dir, filename)
     try:
-        resp = requests.get(CAMERA_SNAPSHOT_URL, timeout=10)
+        resp = requests.get(url, timeout=10)
         resp.raise_for_status()
         with open(filepath, "wb") as f:
             f.write(resp.content)
-        logger.info(f"Snapshot saved: {filepath} ({len(resp.content)} bytes)")
+        logger.info(f"Snapshot saved: {filepath} ({len(resp.content)} bytes){' [' + label + ']' if label else ''}")
         return filepath
     except Exception as e:
-        logger.error(f"Snapshot capture failed: {e}")
+        logger.error(f"Snapshot capture failed{' [' + label + ']' if label else ''}: {e}")
         return None
 
 
