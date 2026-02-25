@@ -1,4 +1,5 @@
 import os
+import time
 from settings import VERSION, DATA_DIR
 from cam_utils import check_hls_health, check_camera_health
 from timelapse_utils import list_timelapses, get_latest_timelapse
@@ -33,17 +34,36 @@ def handle_timelapse_latest():
     return {"timelapse": latest, "timestamp": get_unix_timestamp()}
 
 
-_last_reset = {}
+_reset_history = {}  # ip -> list of timestamps
+RESET_WINDOW_SEC = 300
+RESET_MAX_IN_WINDOW = 10
 RESET_COOLDOWN_SEC = 60
+_last_reset_per_cam = {}
+
+
+def _get_client_ip():
+    from flask import request
+    return request.headers.get("X-Real-IP") or request.headers.get("X-Forwarded-For", "").split(",")[0].strip() or request.remote_addr
 
 
 def handle_reset_stream(cam_id):
     now = get_unix_timestamp()
-    last = _last_reset.get(cam_id, 0)
+    ip = _get_client_ip()
+    # Per-IP spam detection: >10 resets in 5 minutes triggers exponential backoff
+    history = _reset_history.get(ip, [])
+    history = [t for t in history if now - t < RESET_WINDOW_SEC]
+    if len(history) >= RESET_MAX_IN_WINDOW:
+        backoff = min(2 ** (len(history) - RESET_MAX_IN_WINDOW) * 60, 3600)
+        _reset_history[ip] = history
+        return {"status": "rate_limited", "message": f"Too many resets. Try again in {backoff}s.", "retry_after": backoff, "timestamp": now}, 429
+    # Per-camera cooldown: 60 seconds between resets of the same camera
+    last = _last_reset_per_cam.get(cam_id, 0)
     if now - last < RESET_COOLDOWN_SEC:
         remaining = RESET_COOLDOWN_SEC - (now - last)
-        return {"status": "cooldown", "retry_after": remaining, "timestamp": now}, 429
-    _last_reset[cam_id] = now
+        return {"status": "cooldown", "message": f"Camera was just reset. Wait {remaining}s.", "retry_after": remaining, "timestamp": now}, 429
+    history.append(now)
+    _reset_history[ip] = history
+    _last_reset_per_cam[cam_id] = now
     trigger_file = os.path.join(DATA_DIR, f"reset_cam{cam_id}.trigger")
     with open(trigger_file, "w") as f:
         f.write(str(now))
