@@ -1,0 +1,31 @@
+# Install on the main server (web host)
+# sudo cp plantcam-hls.service /etc/systemd/system/
+# sudo systemctl daemon-reload && sudo systemctl enable --now plantcam-hls
+# Requires: /home/noah/plantcam.env with ROCKPRO64_IP, CAM_PORT, HLS_DIR
+
+[Unit]
+Description=Plant Cam HLS transcoder (MJPEG to H.264 VAAPI)
+After=network.target
+
+[Service]
+EnvironmentFile=/home/noah/plantcam.env
+ExecStartPre=/bin/mkdir -p ${HLS_DIR}
+ExecStart=/usr/bin/ffmpeg \
+    -i http://${ROCKPRO64_IP}:${CAM_PORT}/?action=stream \
+    -r 15 \
+    -vaapi_device /dev/dri/renderD128 \
+    -vf 'format=nv12,hwupload' \
+    -c:v h264_vaapi \
+    -b:v 1500k \
+    -f hls \
+    -hls_time 4 \
+    -hls_list_size 15 \
+    -hls_flags delete_segments \
+    -hls_segment_filename ${HLS_DIR}/segment_%%03d.ts \
+    ${HLS_DIR}/stream.m3u8
+Restart=always
+RestartSec=10
+User=noah
+
+[Install]
+WantedBy=multi-user.target

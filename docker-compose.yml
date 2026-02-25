@@ -1,0 +1,13 @@
+services:
+  plant-backend:
+    image: ghcr.io/${GITHUB_REPO:-local}/plant-backend:latest
+    build: .
+    network_mode: host
+    restart: unless-stopped
+    env_file: .env
+    volumes:
+      - ${DATA_DIR:-./data}:/app/data
+      - ${HLS_DIR:-/var/www/planting/cam/hls}:/app/hls:ro
+    environment:
+      - DATA_DIR=/app/data
+      - HLS_DIR=/app/hls
