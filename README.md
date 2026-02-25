@@ -2,6 +2,8 @@
 
 Flask API backend for a live plant camera streaming and timelapse system. Handles snapshot capture, timelapse generation, camera health monitoring, and serves as the data layer for [plant-frontend](https://github.com/boredhero/plant-frontend).
 
+**Live site:** [planting.martinospizza.dev](https://planting.martinospizza.dev)
+
 ## Architecture
 
 A RockPro64 SBC runs a USB webcam via [ustreamer](https://github.com/pikvm/ustreamer) (MJPEG over HTTP). The main server pulls the MJPEG stream and transcodes it to HLS using ffmpeg with Intel VAAPI hardware encoding. This backend runs alongside the transcoder in Docker, capturing snapshots for timelapse generation and exposing a REST API for stream health and timelapse data.
