@@ -1,6 +1,8 @@
 # Install on the RockPro64 (camera box)
 # sudo cp ustreamer.service /etc/systemd/system/
-# sudo cp ../rockpro64/find_camera.sh /usr/local/bin/find_camera.sh && sudo chmod +x /usr/local/bin/find_camera.sh
+# sudo cp ../find_camera.sh /usr/local/bin/find_camera.sh && sudo chmod +x /usr/local/bin/find_camera.sh
+# sudo cp ../calibrate_exposure.py /usr/local/bin/calibrate_exposure.py && sudo chmod +x /usr/local/bin/calibrate_exposure.py
+# sudo apt-get install -y python3-pil
 # sudo systemctl daemon-reload && sudo systemctl enable --now ustreamer
 
 [Unit]
@@ -11,6 +13,8 @@ After=network.target
 ExecStartPre=/bin/bash -c '/usr/local/bin/find_camera.sh > /run/ustreamer_device'
 ExecStartPre=/bin/bash -c 'v4l2-ctl -d $(cat /run/ustreamer_device) --set-ctrl=auto_exposure=3 --set-ctrl=power_line_frequency=2'
 ExecStart=/bin/bash -c 'exec /usr/bin/ustreamer --device $(cat /run/ustreamer_device) --host 0.0.0.0 --port 8080 --resolution 1280x720 --desired-fps 30 --format MJPEG'
+ExecStartPost=-/usr/bin/python3 /usr/local/bin/calibrate_exposure.py
+TimeoutStartSec=180
 Restart=always
 RestartSec=5
 

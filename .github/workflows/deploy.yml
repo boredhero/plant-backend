@@ -41,7 +41,7 @@ jobs:
           host: ${{ secrets.DEPLOY_HOST }}
           username: ${{ secrets.DEPLOY_USER }}
           key: ${{ secrets.DEPLOY_SSH_KEY }}
-          source: "docker-compose.yml,systemd/plantcam-hls.service,rockpro64/find_camera.sh,rockpro64/systemd/ustreamer.service"
+          source: "docker-compose.yml,systemd/plantcam-hls.service,rockpro64/find_camera.sh,rockpro64/calibrate_exposure.py,rockpro64/systemd/ustreamer.service"
           target: ~/plant-backend/
 
       - name: Deploy
@@ -58,5 +58,6 @@ jobs:
             sudo systemctl daemon-reload
             sudo systemctl restart plantcam-hls
             scp rockpro64/find_camera.sh ${{ secrets.ROCKPRO64_IP }}:/tmp/find_camera.sh
+            scp rockpro64/calibrate_exposure.py ${{ secrets.ROCKPRO64_IP }}:/tmp/calibrate_exposure.py
             scp rockpro64/systemd/ustreamer.service ${{ secrets.ROCKPRO64_IP }}:/tmp/ustreamer.service
-            ssh ${{ secrets.ROCKPRO64_IP }} 'sudo mv /tmp/find_camera.sh /usr/local/bin/find_camera.sh && sudo chmod +x /usr/local/bin/find_camera.sh && sudo mv /tmp/ustreamer.service /etc/systemd/system/ustreamer.service && sudo systemctl daemon-reload && sudo systemctl restart ustreamer'
+            ssh ${{ secrets.ROCKPRO64_IP }} 'sudo apt-get install -y python3-pil 2>/dev/null || pip3 install Pillow 2>/dev/null; sudo mv /tmp/find_camera.sh /usr/local/bin/find_camera.sh && sudo chmod +x /usr/local/bin/find_camera.sh && sudo mv /tmp/calibrate_exposure.py /usr/local/bin/calibrate_exposure.py && sudo chmod +x /usr/local/bin/calibrate_exposure.py && sudo mv /tmp/ustreamer.service /etc/systemd/system/ustreamer.service && sudo systemctl daemon-reload && sudo systemctl restart ustreamer'
