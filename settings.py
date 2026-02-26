@@ -30,8 +30,11 @@ CAMERA_SNAPSHOT_URL = f"http://{CAMERA_HOST}:{CAMERA_PORT}/?action=snapshot"
 CAMERA_STREAM_URL = f"http://{CAMERA_HOST}:{CAMERA_PORT}/?action=stream"
 HLS_PLAYLIST = os.path.join(HLS_DIR, "stream.m3u8")
 CAMERAS = []
+HLS_DIRS = {1: HLS_DIR}
 for i in range(1, 10):
     port = os.environ.get(f"CAM{i}_PORT")
     if port is None:
         break
-    CAMERAS.append({"id": i, "label": os.environ.get(f"CAM{i}_LABEL", f"Camera {i}"), "snapshot_url": f"http://{CAMERA_HOST}:{port}/?action=snapshot", "snapshot_dir": os.path.join(SNAPSHOT_DIR, f"cam{i}"), "timelapse_dir": os.path.join(TIMELAPSE_DIR, f"cam{i}"), "timelapse_serve_prefix": f"/cam/timelapse/cam{i}"})
+    cam_hls_dir = os.environ.get(f"CAM{i}_HLS_DIR", HLS_DIR if i == 1 else f"/app/hls{i}")
+    HLS_DIRS[i] = cam_hls_dir
+    CAMERAS.append({"id": i, "label": os.environ.get(f"CAM{i}_LABEL", f"Camera {i}"), "snapshot_url": f"http://{CAMERA_HOST}:{port}/?action=snapshot", "hls_dir": cam_hls_dir, "snapshot_dir": os.path.join(SNAPSHOT_DIR, f"cam{i}"), "timelapse_dir": os.path.join(TIMELAPSE_DIR, f"cam{i}"), "timelapse_serve_prefix": f"/cam/timelapse/cam{i}"})

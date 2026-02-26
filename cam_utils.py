@@ -1,36 +1,45 @@
 import os
+import glob
+import subprocess
 import requests
 from datetime import datetime
 from logging_setup import setup_logger
-from settings import CAMERA_SNAPSHOT_URL, SNAPSHOT_DIR, HLS_PLAYLIST, CAMERAS
+from settings import CAMERA_SNAPSHOT_URL, SNAPSHOT_DIR, HLS_PLAYLIST, HLS_DIR, CAMERAS
 
 logger = setup_logger("cam_utils")
 
 
 def capture_snapshot():
     if not CAMERAS:
-        return _capture_single(CAMERA_SNAPSHOT_URL, SNAPSHOT_DIR)
+        return _capture_from_hls(HLS_DIR, SNAPSHOT_DIR)
     results = []
     for cam in CAMERAS:
-        results.append(_capture_single(cam["snapshot_url"], cam["snapshot_dir"], cam["label"]))
+        results.append(_capture_from_hls(cam["hls_dir"], cam["snapshot_dir"], cam["label"]))
     return results
 
 
-def _capture_single(url, base_dir, label=""):
+def _capture_from_hls(hls_dir, base_dir, label=""):
+    """Extract a frame from the latest HLS segment (already processed with lagfun/tmedian/color correction)."""
     os.makedirs(base_dir, exist_ok=True)
     today_dir = os.path.join(base_dir, datetime.now().strftime("%Y-%m-%d"))
     os.makedirs(today_dir, exist_ok=True)
     filename = datetime.now().strftime("%H%M%S") + ".jpg"
     filepath = os.path.join(today_dir, filename)
+    segments = sorted(glob.glob(os.path.join(hls_dir, "segment_*.ts")))
+    if not segments:
+        logger.warning(f"No HLS segments found in {hls_dir}{' [' + label + ']' if label else ''}")
+        return None
+    latest_segment = segments[-1]
     try:
-        resp = requests.get(url, timeout=10)
-        resp.raise_for_status()
-        with open(filepath, "wb") as f:
-            f.write(resp.content)
-        logger.info(f"Snapshot saved: {filepath} ({len(resp.content)} bytes){' [' + label + ']' if label else ''}")
+        result = subprocess.run(["ffmpeg", "-y", "-i", latest_segment, "-frames:v", "1", "-update", "1", "-q:v", "2", filepath], capture_output=True, text=True, timeout=10)
+        if result.returncode != 0 or not os.path.exists(filepath):
+            logger.error(f"ffmpeg frame extract failed{' [' + label + ']' if label else ''}: {result.stderr[-300:]}")
+            return None
+        size = os.path.getsize(filepath)
+        logger.info(f"Snapshot saved: {filepath} ({size} bytes){' [' + label + ']' if label else ''}")
         return filepath
-    except Exception as e:
-        logger.error(f"Snapshot capture failed{' [' + label + ']' if label else ''}: {e}")
+    except subprocess.TimeoutExpired:
+        logger.error(f"ffmpeg frame extract timed out{' [' + label + ']' if label else ''}")
         return None
 
 
