@@ -8,6 +8,9 @@ services:
     volumes:
       - /home/noah/plantcam-data:/app/data
       - /var/www/planting.martinospizza.dev/cam/hls:/app/hls:ro
+      - /var/www/planting.martinospizza.dev/cam2/hls:/app/hls2:ro
     environment:
       - DATA_DIR=/app/data
       - HLS_DIR=/app/hls
+      - CAM1_HLS_DIR=/app/hls
+      - CAM2_HLS_DIR=/app/hls2
