@@ -25,11 +25,11 @@ def _capture_from_hls(hls_dir, base_dir, label=""):
     os.makedirs(today_dir, exist_ok=True)
     filename = datetime.now().strftime("%H%M%S") + ".jpg"
     filepath = os.path.join(today_dir, filename)
-    segments = sorted(glob.glob(os.path.join(hls_dir, "segment_*.ts")))
+    segments = glob.glob(os.path.join(hls_dir, "segment_*.ts"))
     if not segments:
         logger.warning(f"No HLS segments found in {hls_dir}{' [' + label + ']' if label else ''}")
         return None
-    latest_segment = segments[-1]
+    latest_segment = max(segments, key=os.path.getmtime)
     try:
         result = subprocess.run(["ffmpeg", "-y", "-i", latest_segment, "-frames:v", "1", "-update", "1", "-q:v", "2", filepath], capture_output=True, text=True, timeout=10)
         if result.returncode != 0 or not os.path.exists(filepath):
