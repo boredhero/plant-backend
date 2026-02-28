@@ -9,7 +9,7 @@ After=network.target
 
 [Service]
 EnvironmentFile=/home/noah/plantcam-cam%i.env
-ExecStartPre=/bin/mkdir -p ${HLS_DIR}
+ExecStartPre=/bin/bash -c 'mkdir -p ${HLS_DIR} && chown noah:noah ${HLS_DIR}'
 ExecStartPre=/bin/bash -c 'rm -f ${HLS_DIR}/segment_*.ts ${HLS_DIR}/stream.m3u8 2>/dev/null; true'
 ExecStart=/usr/bin/ffmpeg \
     -use_wallclock_as_timestamps 1 \
