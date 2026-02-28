@@ -25,7 +25,7 @@ def _stitch_daily(snapshot_dir, timelapse_dir, date_str, label=""):
         for frame in frames:
             f.write(f"file '{frame}'\nduration 0.15\n")
         f.write(f"file '{frames[-1]}'\n")
-    cmd = ["ffmpeg", "-y", "-f", "concat", "-safe", "0", "-i", list_file, "-c:v", "libx264", "-pix_fmt", "yuv420p", "-r", "20", "-g", "1", "-crf", "23", "-preset", "fast", "-movflags", "+faststart", output_path]
+    cmd = ["ffmpeg", "-y", "-f", "concat", "-safe", "0", "-i", list_file, "-c:v", "libx264", "-profile:v", "baseline", "-pix_fmt", "yuv420p", "-r", "20", "-g", "1", "-crf", "20", "-tune", "stillimage", "-movflags", "+faststart", output_path]
     try:
         result = subprocess.run(cmd, capture_output=True, text=True, timeout=300)
         if result.returncode != 0:
@@ -62,7 +62,7 @@ def _stitch_weekly(snapshot_dir, timelapse_dir, label=""):
         for frame in all_frames:
             f.write(f"file '{frame}'\nduration 0.04\n")
         f.write(f"file '{all_frames[-1]}'\n")
-    cmd = ["ffmpeg", "-y", "-f", "concat", "-safe", "0", "-i", list_file, "-c:v", "libx264", "-pix_fmt", "yuv420p", "-r", "24", "-g", "1", "-crf", "23", "-preset", "fast", "-movflags", "+faststart", output_path]
+    cmd = ["ffmpeg", "-y", "-f", "concat", "-safe", "0", "-i", list_file, "-c:v", "libx264", "-profile:v", "baseline", "-pix_fmt", "yuv420p", "-r", "24", "-g", "1", "-crf", "20", "-tune", "stillimage", "-movflags", "+faststart", output_path]
     try:
         result = subprocess.run(cmd, capture_output=True, text=True, timeout=600)
         if result.returncode != 0:
