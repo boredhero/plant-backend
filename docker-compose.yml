@@ -14,3 +14,4 @@ services:
       - HLS_DIR=/app/hls
       - CAM1_HLS_DIR=/app/hls
       - CAM2_HLS_DIR=/app/hls2
+      - TZ=America/New_York

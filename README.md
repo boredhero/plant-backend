@@ -65,15 +65,15 @@ Each camera has an independent ffmpeg filter chain configured via its env file (
 
 **Current production filter chains:**
 
-Cam 1 (overhead, cheap USB webcam with warm color cast):
+Cam 1 (overhead, cheap USB webcam — temporal max adds significant blue+red bias):
 ```
 lagfun=decay=0.9995,tmedian=radius=3:percentile=1,
-eq=brightness=-0.12:saturation=1.15:contrast=1.08,
-colorbalance=rm=0.0:bm=-0.03:rh=-0.05:bh=-0.01,
+eq=brightness=-0.24:saturation=1.25:contrast=1.05,
+colorbalance=rm=-0.08:gm=0.06:bm=-0.30:bs=-0.20:rh=-0.06:bh=-0.02,
 drawtext=...,format=nv12,hwupload
 ```
 
-Cam 2 (side view, accurate color, minimal correction):
+Cam 2 (side view, better native color, lighter correction):
 ```
 lagfun=decay=0.9995,tmedian=radius=3:percentile=1,
 eq=brightness=-0.15:saturation=0.95,
