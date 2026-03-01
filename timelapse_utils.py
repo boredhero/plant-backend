@@ -104,35 +104,47 @@ def list_timelapses():
             label_prefix = cam["label"]
             if os.path.isdir(tl_dir):
                 for f in sorted(glob.glob(os.path.join(tl_dir, "*.mp4")), reverse=True):
-                    basename = os.path.basename(f)
-                    date_str = basename.replace(".mp4", "")
-                    size_mb = round(os.path.getsize(f) / (1024 * 1024), 2)
-                    all_daily.append({"date": date_str, "cam": label_prefix, "cam_id": cam["id"], "filename": basename, "size_mb": size_mb, "url": f"{prefix}/{basename}"})
+                    try:
+                        basename = os.path.basename(f)
+                        date_str = basename.replace(".mp4", "")
+                        size_mb = round(os.path.getsize(f) / (1024 * 1024), 2)
+                        all_daily.append({"date": date_str, "cam": label_prefix, "cam_id": cam["id"], "filename": basename, "size_mb": size_mb, "url": f"{prefix}/{basename}"})
+                    except FileNotFoundError:
+                        continue
             weekly_dir = os.path.join(tl_dir, "weekly")
             if os.path.isdir(weekly_dir):
                 for f in sorted(glob.glob(os.path.join(weekly_dir, "*.mp4")), reverse=True):
-                    basename = os.path.basename(f)
-                    label = basename.replace("week_", "").replace(".mp4", "").replace("_to_", " to ")
-                    size_mb = round(os.path.getsize(f) / (1024 * 1024), 2)
-                    all_weekly.append({"label": label, "cam": label_prefix, "cam_id": cam["id"], "filename": basename, "size_mb": size_mb, "url": f"{prefix}/weekly/{basename}"})
+                    try:
+                        basename = os.path.basename(f)
+                        label = basename.replace("week_", "").replace(".mp4", "").replace("_to_", " to ")
+                        size_mb = round(os.path.getsize(f) / (1024 * 1024), 2)
+                        all_weekly.append({"label": label, "cam": label_prefix, "cam_id": cam["id"], "filename": basename, "size_mb": size_mb, "url": f"{prefix}/weekly/{basename}"})
+                    except FileNotFoundError:
+                        continue
         return {"daily": all_daily, "weekly": all_weekly}
     if not os.path.isdir(TIMELAPSE_DIR):
         return {"daily": [], "weekly": []}
     daily_files = sorted(glob.glob(os.path.join(TIMELAPSE_DIR, "*.mp4")), reverse=True)
     daily = []
     for f in daily_files:
-        basename = os.path.basename(f)
-        date_str = basename.replace(".mp4", "")
-        size_mb = round(os.path.getsize(f) / (1024 * 1024), 2)
-        daily.append({"date": date_str, "filename": basename, "size_mb": size_mb, "url": f"/cam/timelapse/{basename}"})
+        try:
+            basename = os.path.basename(f)
+            date_str = basename.replace(".mp4", "")
+            size_mb = round(os.path.getsize(f) / (1024 * 1024), 2)
+            daily.append({"date": date_str, "filename": basename, "size_mb": size_mb, "url": f"/cam/timelapse/{basename}"})
+        except FileNotFoundError:
+            continue
     weekly_dir = os.path.join(TIMELAPSE_DIR, "weekly")
     weekly_files = sorted(glob.glob(os.path.join(weekly_dir, "*.mp4")), reverse=True) if os.path.isdir(weekly_dir) else []
     weekly = []
     for f in weekly_files:
-        basename = os.path.basename(f)
-        label = basename.replace("week_", "").replace(".mp4", "").replace("_to_", " to ")
-        size_mb = round(os.path.getsize(f) / (1024 * 1024), 2)
-        weekly.append({"label": label, "filename": basename, "size_mb": size_mb, "url": f"/cam/timelapse/weekly/{basename}"})
+        try:
+            basename = os.path.basename(f)
+            label = basename.replace("week_", "").replace(".mp4", "").replace("_to_", " to ")
+            size_mb = round(os.path.getsize(f) / (1024 * 1024), 2)
+            weekly.append({"label": label, "filename": basename, "size_mb": size_mb, "url": f"/cam/timelapse/weekly/{basename}"})
+        except FileNotFoundError:
+            continue
     return {"daily": daily, "weekly": weekly}
 
 
