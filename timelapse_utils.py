@@ -60,9 +60,9 @@ def _stitch_weekly(snapshot_dir, timelapse_dir, label=""):
     list_file = os.path.join(timelapse_dir, "weekly_frames.txt")
     with open(list_file, "w") as f:
         for frame in all_frames:
-            f.write(f"file '{frame}'\nduration 0.04\n")
+            f.write(f"file '{frame}'\nduration 0.09\n")
         f.write(f"file '{all_frames[-1]}'\n")
-    cmd = ["ffmpeg", "-y", "-f", "concat", "-safe", "0", "-i", list_file, "-c:v", "libx264", "-profile:v", "baseline", "-pix_fmt", "yuv420p", "-r", "24", "-g", "1", "-crf", "20", "-tune", "stillimage", "-movflags", "+faststart", output_path]
+    cmd = ["ffmpeg", "-y", "-f", "concat", "-safe", "0", "-i", list_file, "-c:v", "libx264", "-profile:v", "baseline", "-pix_fmt", "yuv420p", "-r", "20", "-g", "1", "-crf", "20", "-tune", "stillimage", "-movflags", "+faststart", output_path]
     try:
         result = subprocess.run(cmd, capture_output=True, text=True, timeout=600)
         if result.returncode != 0:
