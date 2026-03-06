@@ -7,11 +7,11 @@ services:
     env_file: .env
     volumes:
       - /home/noah/plantcam-data:/app/data
-      - /var/www/planting.martinospizza.dev/cam/hls:/app/hls:ro
-      - /var/www/planting.martinospizza.dev/cam2/hls:/app/hls2:ro
+      - /var/www/planting.martinospizza.dev/cam:/app/cam1:ro
+      - /var/www/planting.martinospizza.dev/cam2:/app/cam2:ro
     environment:
       - DATA_DIR=/app/data
-      - HLS_DIR=/app/hls
-      - CAM1_HLS_DIR=/app/hls
-      - CAM2_HLS_DIR=/app/hls2
+      - HLS_DIR=/app/cam1/hls
+      - CAM1_HLS_DIR=/app/cam1/hls
+      - CAM2_HLS_DIR=/app/cam2/hls
       - TZ=America/New_York
