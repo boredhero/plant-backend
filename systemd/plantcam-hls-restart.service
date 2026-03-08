@@ -1,0 +1,6 @@
+[Unit]
+Description=Restart Plant Cam HLS transcoders to clear temporal filter state
+
+[Service]
+Type=oneshot
+ExecStart=/bin/bash -c 'for i in $(systemctl list-units --plain --no-legend "plantcam-hls@*.service" | awk "{print \\$1}"); do systemctl restart "$i"; sleep 5; done'
