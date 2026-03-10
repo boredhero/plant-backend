@@ -5,6 +5,14 @@ services:
     network_mode: host
     restart: always
     env_file: .env
+    labels:
+      - "autoheal=true"
+    healthcheck:
+      test: ["CMD", "curl", "-sf", "http://localhost:5050/info"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 30s
     volumes:
       - /home/noah/plantcam-data:/app/data
       - /var/www/planting.martinospizza.dev/cam:/app/cam1:ro
@@ -15,3 +23,11 @@ services:
       - CAM1_HLS_DIR=/app/cam1/hls
       - CAM2_HLS_DIR=/app/cam2/hls
       - TZ=America/New_York
+  autoheal:
+    image: willfarrell/autoheal
+    restart: always
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+    environment:
+      - AUTOHEAL_CONTAINER_LABEL=autoheal
+      - AUTOHEAL_INTERVAL=30
